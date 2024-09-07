@@ -1,6 +1,10 @@
 package cmd
 
 import (
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -10,6 +14,46 @@ var rootCmd = &cobra.Command{
 	Use:   "caching-proxy",
 	Short: "Caching Proxy Server",
 	Long:  `Caching Proxy Server`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		port, _ := cmd.Flags().GetUint16("port")
+		origin, _ := cmd.Flags().GetString("origin")
+
+		originUrl, err := url.Parse(origin)
+		if err != nil {
+			return fmt.Errorf("error parsing origin: %s", err)
+		}
+
+		fmt.Printf("Starting caching proxy server on port %d\n", port)
+		fmt.Printf("Caching proxy server will proxy requests to %v\n", originUrl)
+
+		err = http.ListenAndServe(
+			fmt.Sprintf("localhost:%d", port),
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				r = r.Clone(r.Context())
+				r.URL.Scheme = originUrl.Scheme
+				r.URL.Host = originUrl.Host
+				r.Host = originUrl.Host
+				r.RequestURI = ""
+
+				res, err := http.DefaultClient.Do(r)
+
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+
+				for k, v := range res.Header {
+					w.Header()[k] = v
+				}
+				w.WriteHeader(res.StatusCode)
+				io.Copy(w, res.Body)
+			}))
+
+		if err != nil {
+			return fmt.Errorf("error starting caching proxy server: %s", err)
+		}
+		return nil
+	},
 }
 
 func Execute() {
@@ -20,4 +64,7 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.Flags().Uint16P("port", "p", 3000, "Port to listen on")
+	rootCmd.Flags().StringP("origin", "o", "", "Origin to proxy requests to")
+	rootCmd.MarkFlagRequired("origin")
 }
