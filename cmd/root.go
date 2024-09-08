@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/sudofrost/caching-proxy/internal/cache"
 )
 
 func forwardRequestToOrigin(r *http.Request, origin *url.URL) (*http.Response, error) {
@@ -51,7 +52,15 @@ var rootCmd = &cobra.Command{
 		err = http.ListenAndServe(
 			fmt.Sprintf("localhost:%d", port),
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				res, err := forwardRequestToOrigin(r, originUrl)
+				if !cache.Has(r) {
+					res, err := forwardRequestToOrigin(r, originUrl)
+					if err != nil {
+						http.Error(w, err.Error(), http.StatusInternalServerError)
+						return
+					}
+					cache.Store(r, res)
+				}
+				res, err := cache.Load(r)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
