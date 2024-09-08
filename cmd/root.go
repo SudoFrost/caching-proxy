@@ -40,6 +40,18 @@ var rootCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		port, _ := cmd.Flags().GetUint16("port")
 		origin, _ := cmd.Flags().GetString("origin")
+		clearCache, _ := cmd.Flags().GetBool("clear-cache")
+
+		if clearCache {
+			err := cache.Clear()
+			if err != nil {
+				return fmt.Errorf("error clearing cache: %s", err)
+			}
+			fmt.Printf("Cleared cache\n")
+			if origin == "" {
+				return nil
+			}
+		}
 
 		originUrl, err := url.Parse(origin)
 		if err != nil {
@@ -85,5 +97,6 @@ func Execute() {
 func init() {
 	rootCmd.Flags().Uint16P("port", "p", 3000, "Port to listen on")
 	rootCmd.Flags().StringP("origin", "o", "", "Origin to proxy requests to")
-	rootCmd.MarkFlagRequired("origin")
+	rootCmd.Flags().BoolP("clear-cache", "c", false, "Clear cache")
+	rootCmd.MarkFlagsOneRequired("origin", "clear-cache")
 }

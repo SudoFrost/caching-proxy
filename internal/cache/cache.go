@@ -48,6 +48,11 @@ func Has(r *http.Request) bool {
 	return !os.IsNotExist(err)
 }
 
+func Clear() error {
+	defer os.Mkdir(cachePath, 0755)
+	return os.RemoveAll(cachePath)
+}
+
 func init() {
 	var err error
 	cachePath, err = os.UserCacheDir()
