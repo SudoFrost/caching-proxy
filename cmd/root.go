@@ -19,6 +19,19 @@ func forwardRequestToOrigin(r *http.Request, origin *url.URL) (*http.Response, e
 	return http.DefaultClient.Do(r)
 }
 
+func writeResponse(w http.ResponseWriter, res *http.Response) {
+	for key, values := range res.Header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+	w.WriteHeader(res.StatusCode)
+	if res.Body != nil {
+		defer res.Body.Close()
+		io.Copy(w, res.Body)
+	}
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "caching-proxy",
 	Short: "Caching Proxy Server",
@@ -43,12 +56,7 @@ var rootCmd = &cobra.Command{
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
-
-				for k, v := range res.Header {
-					w.Header()[k] = v
-				}
-				w.WriteHeader(res.StatusCode)
-				io.Copy(w, res.Body)
+				writeResponse(w, res)
 			}))
 
 		if err != nil {
