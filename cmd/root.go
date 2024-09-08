@@ -64,6 +64,7 @@ var rootCmd = &cobra.Command{
 		err = http.ListenAndServe(
 			fmt.Sprintf("localhost:%d", port),
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				cached := cache.Has(r)
 				if !cache.Has(r) {
 					res, err := forwardRequestToOrigin(r, originUrl)
 					if err != nil {
@@ -76,6 +77,11 @@ var rootCmd = &cobra.Command{
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
+				}
+				if cached {
+					res.Header.Set("X-Cache", "HIT")
+				} else {
+					res.Header.Set("X-Cache", "MISS")
 				}
 				writeResponse(w, res)
 			}))
