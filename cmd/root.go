@@ -17,7 +17,7 @@ func forwardRequestToOrigin(r *http.Request, origin *url.URL) (*http.Response, e
 	req.URL.Host = origin.Host
 	req.Host = origin.Host
 	req.RequestURI = ""
-	return http.DefaultClient.Do(r)
+	return http.DefaultClient.Do(req)
 }
 
 func writeResponse(w http.ResponseWriter, res *http.Response) {
