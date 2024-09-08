@@ -10,6 +10,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func forwardRequestToOrigin(r *http.Request, origin *url.URL) (*http.Response, error) {
+	req := r.Clone(r.Context())
+	req.URL.Scheme = origin.Scheme
+	req.URL.Host = origin.Host
+	req.Host = origin.Host
+	req.RequestURI = ""
+	return http.DefaultClient.Do(r)
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "caching-proxy",
 	Short: "Caching Proxy Server",
@@ -29,14 +38,7 @@ var rootCmd = &cobra.Command{
 		err = http.ListenAndServe(
 			fmt.Sprintf("localhost:%d", port),
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				r = r.Clone(r.Context())
-				r.URL.Scheme = originUrl.Scheme
-				r.URL.Host = originUrl.Host
-				r.Host = originUrl.Host
-				r.RequestURI = ""
-
-				res, err := http.DefaultClient.Do(r)
-
+				res, err := forwardRequestToOrigin(r, originUrl)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
